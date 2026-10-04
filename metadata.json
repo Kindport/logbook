@@ -1,0 +1,6 @@
+{
+  "name": "LogBook - SIWES Training Companion",
+  "description": "A smart SIWES industrial-training logbook companion for Nigerian students with real-time entry generation, streak tracking, and official PDF export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
