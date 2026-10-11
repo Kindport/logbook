@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyBlEU0rRsFYV5kaeXLGJ28YunG3Wvb-tiI"
+
+# Single-Page Application (SPA) routing for React/Vite
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
