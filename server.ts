@@ -15,7 +15,7 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const JWT_SECRET = process.env.JWT_SECRET || 'logbook-siwes-secret-key-2026';
+const JWT_SECRET = process.env.JWT_SECRET || (globalThis as any).__LOGBOOK_JWT_SECRET || ((globalThis as any).__LOGBOOK_JWT_SECRET = crypto.randomUUID());
 
 interface AuthenticatedUser {
   id: number;
@@ -643,7 +643,11 @@ async function startServer() {
       return res.json(generated);
     } catch (err: any) {
       console.error('AI generate error:', err);
-      return res.status(500).json({ error: err.message || 'Failed to generate logbook entry.' });
+      const rawMsg = typeof err?.message === 'string' ? err.message : '';
+      const safeError = rawMsg && !rawMsg.includes('AIza') && !rawMsg.toLowerCase().includes('apikey') && !rawMsg.toLowerCase().includes('secret')
+        ? rawMsg
+        : 'Failed to generate logbook entry. Please try again.';
+      return res.status(500).json({ error: safeError });
     }
   });
 
@@ -671,7 +675,7 @@ async function startServer() {
   wss.on('connection', async (clientWs: WebSocket) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      clientWs.send(JSON.stringify({ error: 'GEMINI_API_KEY is not configured on the server.' }));
+      clientWs.send(JSON.stringify({ error: 'AI voice assistant is temporarily unavailable.' }));
       clientWs.close();
       return;
     }

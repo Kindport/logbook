@@ -96,7 +96,8 @@ Please transform these raw notes into a professional 2-3 sentence weekly summary
         }
       }
     } catch (err: any) {
-      console.warn('Gemini API call warning, using fallback organizer:', err.message);
+      const sanitized = (err?.message || '').replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]');
+      console.warn('Gemini API call warning, using fallback organizer:', sanitized);
     }
   }
 

@@ -47,12 +47,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const resetAuthForm = () => {
+    setPassword('');
+    setShowPassword(false);
+    setAuthError(null);
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setIsLoading(true);
       setAuthError(null);
       const res = await api.login({ email, password });
+      resetAuthForm();
       onAuthSuccess(res.user, res.placement);
     } catch (err: any) {
       setAuthError(err.message || 'Failed to sign in. Please verify your credentials.');
@@ -74,6 +81,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         institution,
         department,
       });
+      resetAuthForm();
       onAuthSuccess(res.user, res.placement);
     } catch (err: any) {
       setAuthError(err.message || 'Failed to create account.');
@@ -303,7 +311,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           <div className="relative w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8 shadow-2xl">
             {/* Close */}
             <button
-              onClick={() => setAuthMode(null)}
+              onClick={() => {
+                resetAuthForm();
+                setAuthMode(null);
+              }}
               className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
             >
               ✕
@@ -314,7 +325,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <button
                 type="button"
                 onClick={() => {
-                  setAuthError(null);
+                  resetAuthForm();
                   setAuthMode('login');
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
@@ -328,7 +339,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <button
                 type="button"
                 onClick={() => {
-                  setAuthError(null);
+                  resetAuthForm();
                   setAuthMode('signup');
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
@@ -391,11 +402,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Password</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-zinc-300">Password</label>
+                    <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5 text-lime-400" />
+                      Encrypted & Protected
+                    </span>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -404,8 +422,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     />
                     <button
                       type="button"
+                      title={showPassword ? 'Hide password' : 'Show password'}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-zinc-500 hover:text-zinc-300"
+                      className="absolute right-3 top-2.5 text-zinc-500 hover:text-zinc-300 transition"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -471,6 +490,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <label className="block text-xs font-semibold text-zinc-300 mb-1">Password</label>
                     <input
                       type="password"
+                      autoComplete="new-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
