@@ -34,11 +34,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [exportError, setExportError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   // Set all expanded initially or tracked by week id
-  const [expandedWeekIds, setExpandedWeekIds] = useState<number[]>(() =>
+  const [expandedWeekIds, setExpandedWeekIds] = useState<(string | number)[]>(() =>
     entries.slice(0, 3).map((e) => e.id)
   );
 
-  const toggleExpand = (id: number) => {
+  const toggleExpand = (id: string | number) => {
     if (expandedWeekIds.includes(id)) {
       setExpandedWeekIds(expandedWeekIds.filter((wId) => wId !== id));
     } else {

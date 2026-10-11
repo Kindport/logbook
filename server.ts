@@ -1,9 +1,12 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { WebSocketServer, WebSocket } from 'ws';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { db, initDatabase } from './src/server/db.ts';
 import { generateLogbookEntry } from './src/server/ai.ts';
 import { generateLogbookPdf } from './src/server/pdf.ts';
@@ -660,9 +663,90 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
+  const server = http.createServer(app);
+
+  // --- WEBSOCKET LIVE API SERVER (gemini-3.8-live) ---
+  const wss = new WebSocketServer({ server, path: '/api/live' });
+
+  wss.on('connection', async (clientWs: WebSocket) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      clientWs.send(JSON.stringify({ error: 'GEMINI_API_KEY is not configured on the server.' }));
+      clientWs.close();
+      return;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+      const session = await ai.live.connect({
+        model: 'gemini-3.8-live',
+        config: {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: `You are LogBook Voice Assistant, an encouraging, professional SIWES industrial training mentor and supervisor for Nigerian university and polytechnic students. You talk with students to help them reflect on their week of industrial training. Ask what engineering tasks, tools, troubleshooting, safety drills, or office duties they executed from Monday through Friday. Speak warmly, concisely, and keep your responses brief (1-3 sentences) so it feels like a natural conversation. Help them articulate technical details clearly for their ITF logbook.`,
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Puck',
+              },
+            },
+          },
+        },
+        callbacks: {
+          onmessage: (message: LiveServerMessage) => {
+            const part = message.serverContent?.modelTurn?.parts?.[0];
+            const audio = part?.inlineData?.data;
+            const text = part?.text;
+            if (audio) {
+              clientWs.send(JSON.stringify({ audio }));
+            }
+            if (text) {
+              clientWs.send(JSON.stringify({ text }));
+            }
+            if (message.serverContent?.interrupted) {
+              clientWs.send(JSON.stringify({ interrupted: true }));
+            }
+          },
+          onclose: () => {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.close();
+            }
+          },
+        },
+      });
+
+      clientWs.on('message', (data) => {
+        try {
+          const payload = JSON.parse(data.toString());
+          if (payload.audio) {
+            session.sendRealtimeInput({
+              audio: { data: payload.audio, mimeType: 'audio/pcm;rate=16000' },
+            });
+          } else if (payload.text) {
+            session.sendRealtimeInput({
+              text: payload.text,
+            });
+          }
+        } catch (err) {
+          console.error('Error processing client WS message:', err);
+        }
+      });
+
+      clientWs.on('close', () => {
+        try {
+          session.close();
+        } catch (_) {}
+      });
+    } catch (err: any) {
+      console.error('Failed to connect to Live API session:', err);
+      clientWs.send(JSON.stringify({ error: err.message || 'Live API connection failed' }));
+      clientWs.close();
+    }
+  });
+
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`LogBook server listening on http://0.0.0.0:${port}`);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`LogBook server with Live API listening on http://0.0.0.0:${port}`);
   });
 }
 

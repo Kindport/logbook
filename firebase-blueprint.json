@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Student user profile containing identity and SIWES institution details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "matric_no": { "type": "string", "maxLength": 64 },
+        "institution": { "type": "string", "maxLength": 200 },
+        "department": { "type": "string", "maxLength": 200 },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "email", "matric_no", "institution", "department"]
+    },
+    "Placement": {
+      "title": "Placement",
+      "description": "Student SIWES industrial training host organization particulars.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "host_organization": { "type": "string", "maxLength": 250 },
+        "start_date": { "type": "string", "maxLength": 32 },
+        "duration_weeks": { "type": "number" },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "user_id", "host_organization", "start_date", "duration_weeks"]
+    },
+    "LogEntry": {
+      "title": "LogEntry",
+      "description": "Weekly SIWES logbook entry summary and scratchpad.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "week_number": { "type": "number" },
+        "date_range": { "type": "string", "maxLength": 128 },
+        "raw_notes": { "type": "string", "maxLength": 5000 },
+        "summary": { "type": "string", "maxLength": 3000 },
+        "created_at": { "type": "string", "maxLength": 64 },
+        "updated_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "user_id", "week_number", "date_range", "summary"]
+    },
+    "EntryDay": {
+      "title": "EntryDay",
+      "description": "Discrete activity report for an individual weekday.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "entry_id": { "type": "string", "maxLength": 128 },
+        "day_name": { "type": "string", "maxLength": 32 },
+        "text": { "type": "string", "maxLength": 2000 }
+      },
+      "required": ["id", "entry_id", "day_name", "text"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Profile document for the authenticated student."
+    },
+    "/users/{userId}/placement/{placementId}": {
+      "schema": "Placement",
+      "description": "Active industrial training placement for the student."
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "LogEntry",
+      "description": "Weekly summary entry for the student."
+    },
+    "/users/{userId}/entries/{entryId}/days/{dayId}": {
+      "schema": "EntryDay",
+      "description": "Individual daily activity entry for the week."
+    }
+  }
+}

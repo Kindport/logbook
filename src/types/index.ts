@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   matric_no: string;
@@ -8,21 +8,23 @@ export interface User {
 }
 
 export interface Placement {
-  id: number;
+  id: string | number;
+  user_id?: string | number;
   host_organization: string;
   start_date: string;
   duration_weeks: number;
 }
 
 export interface EntryDay {
-  id?: number;
-  entry_id?: number;
+  id?: string | number;
+  entry_id?: string | number;
   day_name: string;
   text: string;
 }
 
 export interface Entry {
-  id: number;
+  id: string | number;
+  user_id?: string | number;
   week_number: number;
   date_range: string;
   raw_notes: string;

@@ -21,6 +21,7 @@ import {
   Trash2,
   Plus,
   Minus,
+  Radio,
 } from 'lucide-react';
 
 interface ComposerViewProps {
@@ -30,6 +31,7 @@ interface ComposerViewProps {
   setSelectedWeek: (week: number) => void;
   onEntrySaved: (entry: Entry) => void;
   onEntryDeleted?: (weekNumber: number) => void;
+  onOpenVoiceAssistant?: () => void;
 }
 
 const DEFAULT_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -41,6 +43,7 @@ export const ComposerView: React.FC<ComposerViewProps> = ({
   setSelectedWeek,
   onEntrySaved,
   onEntryDeleted,
+  onOpenVoiceAssistant,
 }) => {
   const [rawNotes, setRawNotes] = useState('');
   const [summary, setSummary] = useState('');
@@ -363,19 +366,34 @@ export const ComposerView: React.FC<ComposerViewProps> = ({
             </p>
           </div>
 
-          {/* Smart Assist Trigger */}
-          <button
-            type="button"
-            onClick={() => setIsSmartAssistOpen(true)}
-            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition ${
-              isRawNotesEmpty
-                ? 'bg-lime-400/10 border-2 border-lime-400/60 text-lime-400 shadow-sm shadow-lime-400/20 animate-pulse'
-                : 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-lime-400" />
-            <span>Smart Assist: Need Prompts?</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Live Voice Assistant Trigger */}
+            {onOpenVoiceAssistant && (
+              <button
+                type="button"
+                onClick={onOpenVoiceAssistant}
+                className="flex items-center gap-1.5 rounded-xl border border-lime-400/40 bg-lime-400/10 px-3 py-1.5 text-xs font-bold text-lime-400 hover:bg-lime-400/20 transition shadow-sm"
+                title="Speak directly with gemini-3.8-live about your week"
+              >
+                <Radio className="h-3.5 w-3.5 animate-pulse text-lime-400" />
+                <span>Voice Interview (Live AI)</span>
+              </button>
+            )}
+
+            {/* Smart Assist Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsSmartAssistOpen(true)}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                isRawNotesEmpty
+                  ? 'bg-lime-400/10 border-2 border-lime-400/60 text-lime-400 shadow-sm shadow-lime-400/20 animate-pulse'
+                  : 'bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-lime-400" />
+              <span>Smart Assist</span>
+            </button>
+          </div>
         </div>
 
         {/* Textarea for raw notes */}

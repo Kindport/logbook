@@ -1,4 +1,11 @@
 import React, { useState } from 'react';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../lib/firebase.ts';
+import {
+  getUserProfileFirestore,
+  saveUserProfileFirestore,
+  getPlacementFirestore,
+} from '../lib/firestoreService.ts';
 import { api } from '../lib/api.ts';
 import { User, Placement } from '../types/index.ts';
 import {
@@ -70,6 +77,59 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       onAuthSuccess(res.user, res.placement);
     } catch (err: any) {
       setAuthError(err.message || 'Failed to create account.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const [googleUserTemp, setGoogleUserTemp] = useState<any>(null);
+  const [showGoogleDetailsModal, setShowGoogleDetailsModal] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      setAuthError(null);
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+
+      // Check existing profile in Firestore
+      const existingProfile = await getUserProfileFirestore(firebaseUser.uid);
+      if (existingProfile && existingProfile.matric_no) {
+        const placement = await getPlacementFirestore(firebaseUser.uid);
+        onAuthSuccess(existingProfile, placement);
+      } else {
+        // Show detail collection modal for student info
+        setGoogleUserTemp(firebaseUser);
+        setName(firebaseUser.displayName || '');
+        setEmail(firebaseUser.email || '');
+        setShowGoogleDetailsModal(true);
+      }
+    } catch (err: any) {
+      console.error('Google sign-in error:', err);
+      setAuthError(err.message || 'Google sign-in could not be completed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleProfileComplete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleUserTemp) return;
+    try {
+      setIsLoading(true);
+      setAuthError(null);
+      const profile = await saveUserProfileFirestore(googleUserTemp.uid, {
+        name: name || googleUserTemp.displayName || 'Student',
+        email: email || googleUserTemp.email || '',
+        matric_no: matricNo.trim(),
+        institution: institution.trim(),
+        department: department.trim(),
+      });
+      const placement = await getPlacementFirestore(googleUserTemp.uid);
+      setShowGoogleDetailsModal(false);
+      onAuthSuccess(profile, placement);
+    } catch (err: any) {
+      setAuthError(err.message || 'Failed to save student profile.');
     } finally {
       setIsLoading(false);
     }
@@ -157,23 +217,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           {/* Call to Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
-              onClick={() => {
-                setAuthError(null);
-                setAuthMode('signup');
-              }}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-lime-400 px-8 py-3.5 text-sm font-extrabold text-zinc-950 hover:bg-lime-300 transition shadow-xl shadow-lime-400/20 cursor-pointer"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-2xl border border-zinc-700 bg-zinc-900 px-7 py-3.5 text-sm font-bold text-white hover:bg-zinc-800 transition cursor-pointer shadow-xl shadow-black/40"
             >
-              <span>Create Free Account</span>
-              <ArrowRight className="h-4 w-4" />
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
             </button>
             <button
               onClick={() => {
                 setAuthError(null);
-                setAuthMode('login');
+                setAuthMode('signup');
               }}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/90 px-6 py-3.5 text-sm font-bold text-zinc-200 hover:bg-zinc-800 transition"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-lime-400 px-7 py-3.5 text-sm font-extrabold text-zinc-950 hover:bg-lime-300 transition shadow-xl shadow-lime-400/20 cursor-pointer"
             >
-              <span>Sign In</span>
+              <span>Email Sign Up</span>
+              <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={handleDemoLogin}
@@ -181,7 +245,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl border border-lime-400/40 bg-lime-400/10 px-6 py-3.5 text-sm font-bold text-lime-400 hover:bg-lime-400/20 transition cursor-pointer"
             >
               <Sparkles className="h-4 w-4" />
-              <span>Try Demo Student Account</span>
+              <span>Try Demo Account</span>
             </button>
           </div>
 
@@ -282,6 +346,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 {authError}
               </div>
             )}
+
+            {/* Google One-Click Button */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 text-xs font-bold text-white hover:bg-zinc-800 transition mb-4 shadow-sm"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+
+            <div className="relative flex items-center justify-center mb-4">
+              <div className="border-t border-zinc-800 w-full" />
+              <span className="bg-zinc-900 px-2 text-[10px] uppercase font-bold text-zinc-500 absolute">
+                or with email
+              </span>
+            </div>
 
             {authMode === 'login' ? (
               /* LOGIN FORM */
@@ -442,6 +529,96 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* First-time Google Student Academic Info Modal */}
+      {showGoogleDetailsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 sm:p-7 shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-400 text-zinc-950 font-bold mb-2.5">
+                <GraduationCap className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Complete Student Details</h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Signed in as <strong className="text-zinc-200">{googleUserTemp?.email}</strong>. Enter your university particulars for official SIWES logbook documents.
+              </p>
+            </div>
+
+            {authError && (
+              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-300">
+                {authError}
+              </div>
+            )}
+
+            <form onSubmit={handleGoogleProfileComplete} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Adebayo Emmanuel Okafor"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-lime-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Matric / Reg. Number</label>
+                <input
+                  type="text"
+                  required
+                  value={matricNo}
+                  onChange={(e) => setMatricNo(e.target.value)}
+                  placeholder="e.g. 2021/1/89204EE"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-lime-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Institution</label>
+                <input
+                  type="text"
+                  required
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="e.g. University of Lagos, FUT Minna, Yabatech"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-lime-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Department</label>
+                <input
+                  type="text"
+                  required
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="e.g. Electrical Engineering / Computer Science"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-lime-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleDetailsModal(false)}
+                  className="flex-1 rounded-xl border border-zinc-800 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 rounded-xl bg-lime-400 py-2.5 text-xs font-bold text-zinc-950 hover:bg-lime-300 transition"
+                >
+                  {isLoading ? 'Saving...' : 'Enter LogBook'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

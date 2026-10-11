@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['name', 'email', 'matric_no', 'institution', 'department']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 128 &&
+             data.matric_no is string && data.matric_no.size() > 0 && data.matric_no.size() <= 64 &&
+             data.institution is string && data.institution.size() > 0 && data.institution.size() <= 200 &&
+             data.department is string && data.department.size() > 0 && data.department.size() <= 200;
+    }
+
+    // Validation Blueprint: Placement
+    function isValidPlacement(data, userId) {
+      return data.keys().hasAll(['host_organization', 'start_date', 'duration_weeks']) &&
+             data.host_organization is string && data.host_organization.size() > 0 && data.host_organization.size() <= 250 &&
+             data.start_date is string && data.start_date.size() > 0 && data.start_date.size() <= 32 &&
+             data.duration_weeks is number && data.duration_weeks > 0 && data.duration_weeks <= 52;
+    }
+
+    // Validation Blueprint: LogEntry
+    function isValidLogEntry(data, userId) {
+      return data.keys().hasAll(['week_number', 'date_range', 'summary']) &&
+             data.week_number is number && data.week_number > 0 && data.week_number <= 52 &&
+             data.date_range is string && data.date_range.size() > 0 && data.date_range.size() <= 128 &&
+             data.summary is string && data.summary.size() <= 3000 &&
+             (!('raw_notes' in data) || (data.raw_notes is string && data.raw_notes.size() <= 5000));
+    }
+
+    // Validation Blueprint: EntryDay
+    function isValidEntryDay(data) {
+      return data.keys().hasAll(['day_name', 'text']) &&
+             data.day_name is string && data.day_name.size() > 0 && data.day_name.size() <= 32 &&
+             data.text is string && data.text.size() <= 2000;
+    }
+
+    // User Profile Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Blanket user queries strictly forbidden
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Student Placement Subcollection
+      match /placement/{placementId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(placementId) && isValidPlacement(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(placementId) && isValidPlacement(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(placementId);
+      }
+
+      // Weekly Entries Subcollection
+      match /entries/{entryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(entryId) && isValidLogEntry(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(entryId) && isValidLogEntry(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(entryId);
+
+        // Daily Activities Subcollection
+        match /days/{dayId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidId(dayId) && isValidEntryDay(incoming());
+          allow update: if isOwner(userId) && isValidId(dayId) && isValidEntryDay(incoming());
+          allow delete: if isOwner(userId) && isValidId(dayId);
+        }
+      }
+    }
+  }
+}
